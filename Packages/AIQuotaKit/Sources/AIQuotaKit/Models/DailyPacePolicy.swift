@@ -2,13 +2,18 @@ import Foundation
 
 /// Today's share of a weekly quota, and how much of that share is already gone.
 public struct DailyPaceBudget: Sendable, Equatable {
+    public let startUtilization: Double
     public let allowance: Double
     public let spent: Double
 
     public var remaining: Double { allowance - spent }
     public var isOver: Bool { spent > allowance }
 
-    public init(allowance: Double, spent: Double) {
+    /// Utilization at which today's share runs out — where a gauge marks the line.
+    public var limit: Double { startUtilization + allowance }
+
+    public init(startUtilization: Double, allowance: Double, spent: Double) {
+        self.startUtilization = startUtilization
         self.allowance = allowance
         self.spent = spent
     }
@@ -67,6 +72,7 @@ public enum DailyPacePolicy {
 
         return Outcome(
             budget: DailyPaceBudget(
+                startUtilization: current.utilization,
                 allowance: current.allowance,
                 spent: max(0, utilization - current.utilization)
             ),

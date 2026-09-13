@@ -21,6 +21,8 @@ struct CircularGaugeView: View {
     let label: String
     let primaryLabel: String   // e.g. "5h"
     let secondaryLabel: String // e.g. "7-day"
+    /// Utilization today's pace budget runs out at, marked on the secondary ring.
+    var paceLimitPercent: Double? = nil
     let resetAt: Date?
     let weeklyResetAt: Date?
     let isRefreshing: Bool
@@ -69,6 +71,17 @@ struct CircularGaugeView: View {
     private let innerLw: CGFloat = 7
     private var innerPad: CGFloat { outerLw / 2 + 2 + innerLw / 2 }
 
+    /// Fraction of the full circle the pace tick spans — the inner ring is ~295pt
+    /// around, so this reads as a ~1.5pt hairline at every gauge size in use.
+    private static let paceTickTrim: Double = 0.005
+
+    /// Where along the arc today's share runs out, or `nil` when there is nothing
+    /// to mark: no budget yet, or a line sitting at the very end of the ring.
+    private var paceTickPosition: Double? {
+        guard showsSecondaryMetric, let paceLimitPercent, paceLimitPercent < 100 else { return nil }
+        return 0.75 * max(0, paceLimitPercent) / 100.0
+    }
+
     var body: some View {
         VStack(spacing: 4) {
             arcs
@@ -113,6 +126,16 @@ struct CircularGaugeView: View {
                     .rotationEffect(.degrees(135))
                     .padding(innerPad)
                     .animation(.easeInOut(duration: 0.5), value: secondaryFill)
+            }
+
+            // ── Pace line — how far today may go, drawn over the fill ──
+            if let position = paceTickPosition {
+                Circle()
+                    .trim(from: max(0, position - Self.paceTickTrim), to: position)
+                    .stroke(Color.primary, style: StrokeStyle(lineWidth: innerLw, lineCap: .butt))
+                    .rotationEffect(.degrees(135))
+                    .padding(innerPad)
+                    .animation(.easeInOut(duration: 0.5), value: position)
             }
 
             // ── Centre: logo + labelled percentages ───────────────────

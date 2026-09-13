@@ -22,6 +22,22 @@ final class DailyPacePolicyTests: XCTestCase {
         XCTAssertEqual(outcome?.budget.allowance ?? -1, 0, accuracy: 0.01)
     }
 
+    func testLimitMarksWhereTodaysShareRunsOut() {
+        let outcome = evaluate(utilization: 55, resetInDays: 3.5)
+        XCTAssertEqual(outcome?.budget.limit ?? 0, 66.25, accuracy: 0.01)
+    }
+
+    func testLimitIsUnaffectedBySpendingLaterInTheDay() {
+        let morning = evaluate(utilization: 55, resetInDays: 3.5)
+        let afternoon = evaluate(
+            utilization: 62,
+            resetInDays: 3.5,
+            baseline: morning?.baseline,
+            hoursAfterMidnight: 15
+        )
+        XCTAssertEqual(afternoon?.budget.limit ?? 0, 66.25, accuracy: 0.01)
+    }
+
     func testRemainingCountsDownAsQuotaIsSpentDuringTheDay() {
         let morning = evaluate(utilization: 55, resetInDays: 3.5)
         let afternoon = evaluate(
