@@ -1,12 +1,12 @@
 import Foundation
 
 public enum DailyPaceTextFormatter {
-    /// Renders what is left of today's share, or by how much it has been exceeded.
+    /// Renders the room left before today's ceiling, or how far past it usage is.
     public static func remainingText(for budget: DailyPaceBudget) -> String {
-        let remaining = budget.remaining
+        let headroom = budget.headroom
         // Half away from zero, matching how utilization is rounded elsewhere.
-        let magnitude = String(format: "%.1f", (abs(remaining) * 10).rounded() / 10)
+        let magnitude = String(format: "%.1f", (abs(headroom) * 10).rounded() / 10)
 
-        return remaining < 0 ? "\(magnitude)% over" : "\(magnitude)% left"
+        return headroom < 0 ? "\(magnitude)% over" : "\(magnitude)% left"
     }
 }

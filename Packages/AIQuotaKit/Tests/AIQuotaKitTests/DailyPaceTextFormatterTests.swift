@@ -2,23 +2,23 @@ import XCTest
 @testable import AIQuotaKit
 
 final class DailyPaceTextFormatterTests: XCTestCase {
-    func testUnspentBudgetReadsAsRemaining() {
+    func testHeadroomBelowTheCeilingReadsAsRemaining() {
         let text = DailyPaceTextFormatter.remainingText(
-            for: DailyPaceBudget(startUtilization: 55, allowance: 11.25, spent: 4)
+            for: DailyPaceBudget(ceiling: 26.19, utilization: 20)
         )
-        XCTAssertEqual(text, "7.3% left")
+        XCTAssertEqual(text, "6.2% left")
     }
 
-    func testOverspentBudgetReadsAsOverage() {
+    func testUsagePastTheCeilingReadsAsOverage() {
         let text = DailyPaceTextFormatter.remainingText(
-            for: DailyPaceBudget(startUtilization: 55, allowance: 11.25, spent: 15)
+            for: DailyPaceBudget(ceiling: 26.19, utilization: 37)
         )
-        XCTAssertEqual(text, "3.8% over")
+        XCTAssertEqual(text, "10.8% over")
     }
 
-    func testFullySpentBudgetIsNotReportedAsOverage() {
+    func testUsageExactlyAtTheCeilingIsNotOverage() {
         let text = DailyPaceTextFormatter.remainingText(
-            for: DailyPaceBudget(startUtilization: 55, allowance: 11.25, spent: 11.25)
+            for: DailyPaceBudget(ceiling: 26.19, utilization: 26.19)
         )
         XCTAssertEqual(text, "0.0% left")
     }

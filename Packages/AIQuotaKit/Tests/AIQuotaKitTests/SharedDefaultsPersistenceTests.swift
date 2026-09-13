@@ -65,45 +65,6 @@ struct SharedDefaultsPersistenceTests {
         #expect(attempts.last?.httpStatus == 511)
     }
 
-    @Test("daily pace baselines round-trip per service")
-    func dailyPaceBaselinesRoundTripPerService() {
-        SharedDefaults.clearDailyPaceBaselines()
-        defer { SharedDefaults.clearDailyPaceBaselines() }
-
-        let claude = DailyPaceBaseline(
-            day: Date(timeIntervalSince1970: 1_789_311_600),
-            utilization: 55,
-            allowance: 11.25
-        )
-        let codex = DailyPaceBaseline(
-            day: Date(timeIntervalSince1970: 1_789_311_600),
-            utilization: 20,
-            allowance: 16
-        )
-
-        SharedDefaults.saveDailyPaceBaseline(claude, for: .claude)
-        SharedDefaults.saveDailyPaceBaseline(codex, for: .codex)
-
-        #expect(SharedDefaults.loadDailyPaceBaseline(for: .claude) == claude)
-        #expect(SharedDefaults.loadDailyPaceBaseline(for: .codex) == codex)
-    }
-
-    @Test("clearing daily pace baselines removes every service")
-    func clearingDailyPaceBaselinesRemovesEveryService() {
-        let baseline = DailyPaceBaseline(
-            day: Date(timeIntervalSince1970: 1_789_311_600),
-            utilization: 55,
-            allowance: 11.25
-        )
-        SharedDefaults.saveDailyPaceBaseline(baseline, for: .claude)
-        SharedDefaults.saveDailyPaceBaseline(baseline, for: .codex)
-
-        SharedDefaults.clearDailyPaceBaselines()
-
-        #expect(SharedDefaults.loadDailyPaceBaseline(for: .claude) == nil)
-        #expect(SharedDefaults.loadDailyPaceBaseline(for: .codex) == nil)
-    }
-
     private var repoRoot: URL {
         URL(filePath: #filePath)
             .deletingLastPathComponent()

@@ -162,7 +162,6 @@ final class QuotaViewModel {
         SharedDefaults.clearClaudeUsage()
         SharedDefaults.clearCodexSourceAttempts()
         SharedDefaults.clearClaudeSourceAttempts()
-        SharedDefaults.clearDailyPaceBaselines()
         settings = .default
         // Persist settings directly — calling saveSettings() would invoke startAutoRefresh(),
         // which must not fire while the auth coordinators are still in the resetting state.
@@ -375,16 +374,18 @@ final class QuotaViewModel {
 
     // MARK: - Daily pace
 
-    /// Pacing only applies to the weekly window — the short window is too brief to ration.
+    /// Weekly windows only — a 5h window is too short to ration by the day.
+    private static let weeklyWindow: TimeInterval = 7 * 86_400
+
     private func refreshCodexDailyPace() {
         guard let usage = codexUsage else {
             codexDailyPace = nil
             return
         }
-        codexDailyPace = evaluateDailyPace(
+        codexDailyPace = DailyPacePolicy.budget(
             utilization: Double(usage.weeklyUsedPercent),
             resetAt: usage.weeklyResetAt,
-            service: .codex
+            windowLength: Self.weeklyWindow
         )
     }
 
@@ -395,26 +396,11 @@ final class QuotaViewModel {
             claudeDailyPace = nil
             return
         }
-        claudeDailyPace = evaluateDailyPace(
+        claudeDailyPace = DailyPacePolicy.budget(
             utilization: utilization,
             resetAt: resetAt,
-            service: .claude
+            windowLength: Self.weeklyWindow
         )
-    }
-
-    private func evaluateDailyPace(
-        utilization: Double,
-        resetAt: Date,
-        service: ServiceType
-    ) -> DailyPaceBudget? {
-        guard let outcome = DailyPacePolicy.evaluate(
-            utilization: utilization,
-            resetAt: resetAt,
-            baseline: SharedDefaults.loadDailyPaceBaseline(for: service)
-        ) else { return nil }
-
-        SharedDefaults.saveDailyPaceBaseline(outcome.baseline, for: service)
-        return outcome.budget
     }
 
     // MARK: - Network path monitor
