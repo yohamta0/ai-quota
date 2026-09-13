@@ -2,6 +2,8 @@ import Testing
 import Foundation
 @testable import AIQuotaKit
 
+/// Serialized because every case mutates the same app-group defaults.
+@Suite(.serialized)
 struct SharedDefaultsPersistenceTests {
     @Test("shared defaults force-persist mutations for widget consumers")
     func sharedDefaultsSynchronizeAfterWrites() throws {
@@ -61,6 +63,45 @@ struct SharedDefaultsPersistenceTests {
         #expect(attempts.count == 10)
         #expect(attempts.first?.httpStatus == 502)
         #expect(attempts.last?.httpStatus == 511)
+    }
+
+    @Test("daily pace baselines round-trip per service")
+    func dailyPaceBaselinesRoundTripPerService() {
+        SharedDefaults.clearDailyPaceBaselines()
+        defer { SharedDefaults.clearDailyPaceBaselines() }
+
+        let claude = DailyPaceBaseline(
+            day: Date(timeIntervalSince1970: 1_789_311_600),
+            utilization: 55,
+            allowance: 11.25
+        )
+        let codex = DailyPaceBaseline(
+            day: Date(timeIntervalSince1970: 1_789_311_600),
+            utilization: 20,
+            allowance: 16
+        )
+
+        SharedDefaults.saveDailyPaceBaseline(claude, for: .claude)
+        SharedDefaults.saveDailyPaceBaseline(codex, for: .codex)
+
+        #expect(SharedDefaults.loadDailyPaceBaseline(for: .claude) == claude)
+        #expect(SharedDefaults.loadDailyPaceBaseline(for: .codex) == codex)
+    }
+
+    @Test("clearing daily pace baselines removes every service")
+    func clearingDailyPaceBaselinesRemovesEveryService() {
+        let baseline = DailyPaceBaseline(
+            day: Date(timeIntervalSince1970: 1_789_311_600),
+            utilization: 55,
+            allowance: 11.25
+        )
+        SharedDefaults.saveDailyPaceBaseline(baseline, for: .claude)
+        SharedDefaults.saveDailyPaceBaseline(baseline, for: .codex)
+
+        SharedDefaults.clearDailyPaceBaselines()
+
+        #expect(SharedDefaults.loadDailyPaceBaseline(for: .claude) == nil)
+        #expect(SharedDefaults.loadDailyPaceBaseline(for: .codex) == nil)
     }
 
     private var repoRoot: URL {

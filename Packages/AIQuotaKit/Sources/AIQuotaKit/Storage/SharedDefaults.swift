@@ -9,6 +9,7 @@ public enum SharedDefaults {
     private static let claudeSourceAttemptsKey = "claudeSourceAttempts"
     private static let codexSourceAttemptsKey = "codexSourceAttempts"
     private static let settingsKey     = "appSettings"
+    private static let dailyPaceBaselineKeyPrefix = "dailyPaceBaseline."
     private static let maxClaudeSourceAttempts = 10
     private static let maxCodexSourceAttempts = 10
 
@@ -110,6 +111,30 @@ public enum SharedDefaults {
     public static func clearCodexSourceAttempts() {
         defaults.removeObject(forKey: codexSourceAttemptsKey)
         persistChanges()
+    }
+
+    // MARK: - Daily pace baselines
+
+    public static func saveDailyPaceBaseline(_ baseline: DailyPaceBaseline, for service: ServiceType) {
+        guard let data = try? JSONEncoder().encode(baseline) else { return }
+        defaults.set(data, forKey: dailyPaceBaselineKey(for: service))
+        persistChanges()
+    }
+
+    public static func loadDailyPaceBaseline(for service: ServiceType) -> DailyPaceBaseline? {
+        guard let data = defaults.data(forKey: dailyPaceBaselineKey(for: service)) else { return nil }
+        return try? JSONDecoder().decode(DailyPaceBaseline.self, from: data)
+    }
+
+    public static func clearDailyPaceBaselines() {
+        for service in ServiceType.allCases {
+            defaults.removeObject(forKey: dailyPaceBaselineKey(for: service))
+        }
+        persistChanges()
+    }
+
+    private static func dailyPaceBaselineKey(for service: ServiceType) -> String {
+        "\(dailyPaceBaselineKeyPrefix)\(service.rawValue)"
     }
 
     // MARK: - Settings

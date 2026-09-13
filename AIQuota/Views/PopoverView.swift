@@ -311,6 +311,9 @@ struct PopoverView: View {
             let autoReload = viewModel.codexAutoReload
             VStack(alignment: .leading, spacing: 5) {
                 compactRow("Plan", usage.planType.capitalized)
+                if let pace = viewModel.codexDailyPace {
+                    dailyPaceRow(pace)
+                }
                 if let balance = usage.creditBalance {
                     CodexCreditsRow(balance: balance, autoReload: autoReload)
                 }
@@ -353,6 +356,9 @@ struct PopoverView: View {
         if let usage = viewModel.claudeUsage {
             VStack(alignment: .leading, spacing: 6) {
                 compactRow("Plan", usage.planDisplayName)
+                if let pace = viewModel.claudeDailyPace {
+                    dailyPaceRow(pace)
+                }
                 if let credits = usage.usageCredits, credits.spent > 0 {
                     let tint: Color = credits.limitReached || credits.severity == .critical
                         ? .critical
@@ -382,6 +388,23 @@ struct PopoverView: View {
                 }
             }
         }
+    }
+
+    /// Today's share of the weekly quota. Amber only once the share is spent —
+    /// see docs/budget-warning-design.md on keeping the popover quiet.
+    private func dailyPaceRow(_ pace: DailyPaceBudget) -> some View {
+        compactRow(
+            "Today",
+            DailyPaceTextFormatter.remainingText(for: pace),
+            valueTint: pace.isOver ? .warningAmber : .primary,
+            infoTitle: "Today’s Pace",
+            infoHelp: dailyPaceHelpText
+        )
+    }
+
+    private var dailyPaceHelpText: String {
+        "What is left of the weekly quota, divided by the days left before it resets. "
+            + "Recalculated each day, so a heavy day shrinks every day after it."
     }
 
     private func compactRow(

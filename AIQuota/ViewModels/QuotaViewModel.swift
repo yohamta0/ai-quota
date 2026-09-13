@@ -14,7 +14,8 @@ final class QuotaViewModel {
 
     // MARK: - Codex (OpenAI)
 
-    var codexUsage: CodexUsage?
+    var codexUsage: CodexUsage? { didSet { refreshCodexDailyPace() } }
+    private(set) var codexDailyPace: DailyPaceBudget?
     var codexAutoReload: CodexAutoReload?
     var isCodexLoading = false
     var codexError: NetworkError?
@@ -24,7 +25,8 @@ final class QuotaViewModel {
 
     // MARK: - Claude
 
-    var claudeUsage: ClaudeUsage?
+    var claudeUsage: ClaudeUsage? { didSet { refreshClaudeDailyPace() } }
+    private(set) var claudeDailyPace: DailyPaceBudget?
     var isClaudeLoading = false
     var claudeError: NetworkError?
 
@@ -160,6 +162,7 @@ final class QuotaViewModel {
         SharedDefaults.clearClaudeUsage()
         SharedDefaults.clearCodexSourceAttempts()
         SharedDefaults.clearClaudeSourceAttempts()
+        SharedDefaults.clearDailyPaceBaselines()
         settings = .default
         // Persist settings directly — calling saveSettings() would invoke startAutoRefresh(),
         // which must not fire while the auth coordinators are still in the resetting state.
@@ -224,6 +227,8 @@ final class QuotaViewModel {
         // Load cached data immediately
         codexUsage  = SharedDefaults.loadCachedUsage()
         claudeUsage = SharedDefaults.loadCachedClaudeUsage()
+        refreshCodexDailyPace()
+        refreshClaudeDailyPace()
 
         // Normalise any mixed per-threshold notification state from pre-consolidation builds.
         // OR-resolves each group (any=true → all-true) so aggregate toggles always see
@@ -366,6 +371,50 @@ final class QuotaViewModel {
         WidgetCenter.shared.reloadAllTimelines()
         claudeRefreshGeneration += 1
         isClaudeLoading = false
+    }
+
+    // MARK: - Daily pace
+
+    /// Pacing only applies to the weekly window — the short window is too brief to ration.
+    private func refreshCodexDailyPace() {
+        guard let usage = codexUsage else {
+            codexDailyPace = nil
+            return
+        }
+        codexDailyPace = evaluateDailyPace(
+            utilization: Double(usage.weeklyUsedPercent),
+            resetAt: usage.weeklyResetAt,
+            service: .codex
+        )
+    }
+
+    private func refreshClaudeDailyPace() {
+        guard let utilization = claudeUsage?.sevenDayUtilization,
+              let resetAt = claudeUsage?.sevenDayResetsAt
+        else {
+            claudeDailyPace = nil
+            return
+        }
+        claudeDailyPace = evaluateDailyPace(
+            utilization: utilization,
+            resetAt: resetAt,
+            service: .claude
+        )
+    }
+
+    private func evaluateDailyPace(
+        utilization: Double,
+        resetAt: Date,
+        service: ServiceType
+    ) -> DailyPaceBudget? {
+        guard let outcome = DailyPacePolicy.evaluate(
+            utilization: utilization,
+            resetAt: resetAt,
+            baseline: SharedDefaults.loadDailyPaceBaseline(for: service)
+        ) else { return nil }
+
+        SharedDefaults.saveDailyPaceBaseline(outcome.baseline, for: service)
+        return outcome.budget
     }
 
     // MARK: - Network path monitor
