@@ -399,16 +399,16 @@ struct PopoverView: View {
             "Today",
             DailyPaceTextFormatter.remainingText(for: pace),
             valueTint: pace.isOver ? .warningAmber : .primary,
-            suffix: "cap \(Int(pace.ceiling.rounded()))%",
             infoTitle: "Today’s Pace",
-            infoHelp: dailyPaceHelpText
+            infoHelp: dailyPaceHelpText(pace)
         )
     }
 
-    private var dailyPaceHelpText: String {
-        "Spreads the weekly quota evenly across the window. Today’s cap is the share of the "
-            + "window gone by the end of today, counted from when the window opened rather than "
-            + "from midnight. It holds still all day and steps up once each night."
+    private func dailyPaceHelpText(_ pace: DailyPaceBudget) -> String {
+        "By the end of today you may be at \(Int(pace.ceiling.rounded()))% of the weekly quota; "
+            + "you are at \(Int(pace.utilization.rounded()))%. The cap spreads the quota evenly "
+            + "across the window and is counted from when the window opened, not from midnight, "
+            + "so it holds still all day and steps up once each night."
     }
 
     private func compactRow(
