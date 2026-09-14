@@ -44,8 +44,7 @@ public enum KeychainStore {
             kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock,
         ]) { _, new in new }
         let status = SecItemAdd(attributes as CFDictionary, nil)
-        guard shouldFallback(from: status) else { return }
-        guard shouldUseLegacyFallback else { return }
+        guard usesLegacyKeychain(probeStatus: status) else { return }
 
         deleteFallback(forKey: key)
         var fallbackAttributes = fallbackQuery(forKey: key)
@@ -75,7 +74,7 @@ public enum KeychainStore {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         if status != errSecSuccess {
-            guard shouldUseLegacyFallback else { return nil }
+            guard usesLegacyKeychain else { return nil }
             var fallback = fallbackQuery(forKey: key)
             fallback.merge([
                 kSecReturnData: true,
@@ -92,7 +91,7 @@ public enum KeychainStore {
 
     public static func delete(forKey key: String) {
         deletePrimary(forKey: key)
-        if shouldUseLegacyFallback {
+        if usesLegacyKeychain {
             deleteFallback(forKey: key)
         }
     }
@@ -142,16 +141,37 @@ public enum KeychainStore {
         ]
     }
 
-    private static func shouldFallback(from status: OSStatus) -> Bool {
+    /// Whether a data-protection keychain result means the keychain is unusable
+    /// for this process, as opposed to simply not holding the item.
+    static func usesLegacyKeychain(probeStatus status: OSStatus) -> Bool {
         status == errSecMissingEntitlement || status == errSecParam
     }
 
-    private static var shouldUseLegacyFallback: Bool {
-        // Never touch legacy login-keychain items in production. Those items are
-        // ACL-bound to a specific code signature and can prompt for the login
-        // keychain password on launch after an app update or local Xcode build.
-        isRunningTests
-    }
+    /// Legacy login-keychain items are ACL-bound to a code signature and can prompt
+    /// for the login keychain password, so they are a last resort: reached for only
+    /// by a build that cannot use the data-protection keychain at all — one signed
+    /// without the entitlement that grants access to it. A released build always
+    /// carries that entitlement and never touches them.
+    ///
+    /// Only a write reveals this. A read of an absent item returns the same status
+    /// whether or not the keychain is usable, so the verdict is probed once with a
+    /// throwaway item and cached for the process.
+    private static let usesLegacyKeychain: Bool = {
+        if isRunningTests { return true }
+
+        let probe: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: "\(service).probe",
+            kSecAttrAccount: "probe",
+            kSecValueData: Data(),
+            kSecUseDataProtectionKeychain: true,
+        ]
+        SecItemDelete(probe as CFDictionary)
+        let status = SecItemAdd(probe as CFDictionary, nil)
+        SecItemDelete(probe as CFDictionary)
+
+        return usesLegacyKeychain(probeStatus: status)
+    }()
 
     private static func nonInteractiveAuthContext() -> LAContext {
         let authContext = LAContext()
